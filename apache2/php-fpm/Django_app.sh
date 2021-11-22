@@ -13,16 +13,41 @@ workingfolder="/home/$user/web/$domain"
 
 cd $workingfolder
 
+
 if [ ! -f "$workingfolder/.remove_to_reinstall_django" ]; then
     # this is new project, setup example page
 
-    # copy all files
-    cp -R welcomepage/* "$workingfolder/djangoapp/"
-    # update host
-    sed -i "s/placehereyourdomain.com/$domain/" "$workingfolder/djangoapp/djangoapp/settings.py"
-    # Create the virtual environment with Python 3
     virtualenv -p python3 venv
-fi
+    source venv/bin/activate
+
+    echo "Django==3.2.9">> /home/$user/web/$domain/djangoapp/requirements.txt
+    pip install gunicorn psycopg2-binary
+    pip install -r /home/$user/web/$domain/djangoapp/requirements.txt
+
+    cd djangoapp
+    ./manage.py makemigrations
+    ./manage.py migrate
+
+    chown $user:$user db.sqlite3
+    chown $user:$user manage.py
+    chown $user:$user requirements.txt
+    chown -R $user:$user djangoapp
+    chown -R $user:$user venv
+
+    echo "
+STATIC_ROOT = BASE_DIR / 'static/'
+" >> $workingfolder/djangoapp/djangoapp/settings.py
+    ./manage.py collectstatic
+
+    # update hostname
+    sed -i "s/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \[$domain\]/" "$workingfolder/djangoapp/djangoapp/settings.py"
+    
+    cd ..
+
+else
+# This is normal project load it normally
+
+source venv/bin/activate
 
 # get djangoapp_name
 djangoapp_name="djangoapp"
@@ -31,29 +56,30 @@ if [ -f "$workingfolder/djangoapp_name.txt" ]; then
     # TODO check is that path exist and prevent path traversial
 fi
 
-# Activate the virtual environment
-source venv/bin/activate
-
-# ForceInstall Gunicorn
-pip install gunicorn psycopg2-binary
-
-
-# Django does not have a requirements.txt file
-# Install requirements.txt in case one is given by the user in
-# the working folder
+# try install requirements
 if [ -f "$workingfolder/djangoapp/requirements.txt" ]; then
     pip install -r /home/$user/web/$domain/djangoapp/requirements.txt
 fi
 
-# Make Django migration and  change ownership of the created SQLite database
-cd $djangoapp
+# ForceInstall Gunicorn
+pip install gunicorn psycopg2-binary
+
+cd $djangoapp_name
 ./manage.py makemigrations
 ./manage.py migrate
 
 chown $user:$user db.sqlite3
-chown -R $user:$user *
+chown $user:$user manage.py
+chown $user:$user requirements.txt
+chown -R $user:$user $djangoapp_name
+chown -R $user:$user venv
 
 ./manage.py collectstatic
+
+cd ..
+
+fi
+
 
 # At this stage you can test that it works executing:
 # gunicorn -b 0.0.0.0:8000 djangoapp.wsgi:application
