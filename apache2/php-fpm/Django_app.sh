@@ -14,46 +14,44 @@ workingfolder="/home/$user/web/$domain"
 cd $workingfolder
 
 if [ ! -f "$workingfolder/.remove_to_reinstall_django" ]; then
-    
-    touch "$workingfolder/.remove_to_reinstall_django"
-    echo "How to reinstall" >> "$workingfolder/.remove_to_reinstall_django"
-    echo "1. remove this file" >> "$workingfolder/.remove_to_reinstall_django"
-    echo "2. change backend to something else" >> "$workingfolder/.remove_to_reinstall_django"
-    echo "3. change backend again to django" >> "$workingfolder/.remove_to_reinstall_django"
-    echo "4. empty example page will be setup again" >> "$workingfolder/.remove_to_reinstall_django"
+    # this is new project, setup example page
 
+    # copy all files
+    cp welcomepage/* "$workingfolder/djangoapp/"
+    # update host
+    sed -i "s/placehereyourdomain.com/$domain/" "$workingfolder/djangoapp/djangoapp/settings.py"
+    # Create the virtual environment with Python 3
+    virtualenv -p python3 venv
 fi
-# Create the virtual environment with Python 3
-virtualenv -p python3 venv
+
+# get djangoapp_name
+djangoapp_name="djangoapp"
+if [ -f "$workingfolder/djangoapp_name.txt" ]; then
+    djangoapp_name=$(cat "$workingfolder/djangoapp_name.txt")
+    # TODO check is that path exist and prevent path traversial
+fi
 
 # Activate the virtual environment
 source venv/bin/activate
 
-# Install Django and Gunicorn
-pip install django gunicorn psycopg2-binary
+# ForceInstall Gunicorn
+pip install gunicorn psycopg2-binary
 
-# Create the Django project
-django-admin startproject djangoapp
 
 # Django does not have a requirements.txt file
 # Install requirements.txt in case one is given by the user in
 # the working folder
 if [ -f "$workingfolder/djangoapp/requirements.txt" ]; then
-
-     pip install -r /home/$user/web/$domain/djangoapp/requirements.txt
-
+    pip install -r /home/$user/web/$domain/djangoapp/requirements.txt
 fi
 
 # Make Django migration and  change ownership of the created SQLite database
-cd djangoapp
-./manage.py makemigrations && ./manage.py migrate
-chown $user:$user db.sqlite3
-# now you can edit preseted files
-chown -R $user:$user *
+cd $djangoapp
+./manage.py makemigrations
+./manage.py migrate
 
-# Add static folder and run collectstatic
-echo "
-STATIC_ROOT = os.path.join(BASE_DIR, 'static/')" >> $workingfolder/djangoapp/djangoapp/settings.py
+chown $user:$user db.sqlite3
+chown -R $user:$user *
 
 ./manage.py collectstatic
 
@@ -91,9 +89,9 @@ After=network.target
 [Service]
 User=$user
 Group=$user
-WorkingDirectory=$workingfolder/djangoapp
+WorkingDirectory=$workingfolder/$djangoapp
 
-ExecStart=$workingfolder/venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/run/$domain-gunicorn.sock -m 007 djangoapp.wsgi:application
+ExecStart=$workingfolder/venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/run/$domain-gunicorn.sock -m 007 $djangoapp.wsgi:application
 
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/$domain-gunicorn.service

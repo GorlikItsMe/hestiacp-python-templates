@@ -1,0 +1,6 @@
+How to reinstall
+
+1. remove this file
+2. change backend to something else
+3. change backend again to django
+4. empty example page will be setup again
