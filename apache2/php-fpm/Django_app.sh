@@ -17,7 +17,7 @@ if [ ! -f "$workingfolder/.remove_to_reinstall_django" ]; then
     # this is new project, setup example page
 
     # copy all files
-    cp welcomepage/* "$workingfolder/djangoapp/"
+    cp -R welcomepage/* "$workingfolder/djangoapp/"
     # update host
     sed -i "s/placehereyourdomain.com/$domain/" "$workingfolder/djangoapp/djangoapp/settings.py"
     # Create the virtual environment with Python 3
