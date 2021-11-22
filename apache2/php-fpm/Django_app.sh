@@ -13,6 +13,16 @@ workingfolder="/home/$user/web/$domain"
 
 cd $workingfolder
 
+if [ ! -f "$workingfolder/.remove_to_reinstall_django" ]; then
+    
+    touch "$workingfolder/.remove_to_reinstall_django"
+    echo "How to reinstall" >> "$workingfolder/.remove_to_reinstall_django"
+    echo "1. remove this file" >> "$workingfolder/.remove_to_reinstall_django"
+    echo "2. change backend to something else" >> "$workingfolder/.remove_to_reinstall_django"
+    echo "3. change backend again to django" >> "$workingfolder/.remove_to_reinstall_django"
+    echo "4. empty example page will be setup again" >> "$workingfolder/.remove_to_reinstall_django"
+
+fi
 # Create the virtual environment with Python 3
 virtualenv -p python3 venv
 
@@ -38,6 +48,8 @@ fi
 cd djangoapp
 ./manage.py makemigrations && ./manage.py migrate
 chown $user:$user db.sqlite3
+# now you can edit preseted files
+chown -R $user:$user *
 
 # Add static folder and run collectstatic
 echo "
