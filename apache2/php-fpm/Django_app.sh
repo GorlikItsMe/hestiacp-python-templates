@@ -37,12 +37,12 @@ if [ ! -f "$workingfolder/.remove_to_reinstall_django" ]; then
     chown -R $user:$user djangoapp
 
     echo "
-STATIC_ROOT = BASE_DIR / 'static/'
+STATIC_ROOT = BASE_DIR / 'static'
 " >> $workingfolder/djangoapp/djangoapp/settings.py
     ./manage.py collectstatic
 
     # update hostname
-    sed -i "s/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \[$domain\]/" "$workingfolder/djangoapp/djangoapp/settings.py"
+    sed -i "s/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['$domain'\]/" "$workingfolder/djangoapp/djangoapp/settings.py"
     
     cd ..
     chown -R $user:$user venv
