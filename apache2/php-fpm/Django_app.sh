@@ -20,11 +20,14 @@ if [ ! -f "$workingfolder/.remove_to_reinstall_django" ]; then
     virtualenv -p python3 venv
     source venv/bin/activate
 
+    mkdir /home/admin/web/test.gorlik.pl/djangoapp/
+    touch /home/$user/web/$domain/djangoapp/requirements.txt
     echo "Django==3.2.9">> /home/$user/web/$domain/djangoapp/requirements.txt
     pip install gunicorn psycopg2-binary
     pip install -r /home/$user/web/$domain/djangoapp/requirements.txt
 
     cd djangoapp
+    django-admin startproject djangoapp .
     ./manage.py makemigrations
     ./manage.py migrate
 
@@ -32,7 +35,6 @@ if [ ! -f "$workingfolder/.remove_to_reinstall_django" ]; then
     chown $user:$user manage.py
     chown $user:$user requirements.txt
     chown -R $user:$user djangoapp
-    chown -R $user:$user venv
 
     echo "
 STATIC_ROOT = BASE_DIR / 'static/'
@@ -43,6 +45,8 @@ STATIC_ROOT = BASE_DIR / 'static/'
     sed -i "s/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \[$domain\]/" "$workingfolder/djangoapp/djangoapp/settings.py"
     
     cd ..
+    chown -R $user:$user venv
+    chown -R $user:$user djangoapp
 
 else
 # This is normal project load it normally
