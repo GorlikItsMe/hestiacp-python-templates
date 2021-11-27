@@ -8,96 +8,111 @@ home_dir="$4"
 #Full route to /public_html
 docroot="$5"
 
-
+# Consts
 workingfolder="/home/$user/web/$domain"
+RED='\033[0;31m'
+BLUE='\033[1;34m'
+NC='\033[0m' # No Color
 
+CREATE_NEW=0 # 0-false 1-true
+appname=""
+
+
+# Check config file
+if [ ! -f "$workingfolder/djangoapp.config" ]; then 
+	CREATE_NEW=1
+else
+	source $workingfolder/djangoapp.config
+fi
+
+if [ "$appname" = "" ]; then
+	CREATE_NEW=1
+fi
+if [ $CREATE_NEW = 1 ]; then
+	echo -e "${BLUE}Create Config file ${NC}"
+	echo "appname=djangoapp" > $workingfolder/djangoapp.config
+	chown $user:$user $workingfolder/djangoapp.config
+	chmod 777 $workingfolder/djangoapp.config
+fi
+
+# Load config file
+source $workingfolder/djangoapp.config
+echo -e "${RED}appname = $appname \n${NC}"
+
+
+echo -e "${BLUE}Go to $workingfolder ${NC}"
 cd $workingfolder
 
 
-if [ ! -f "$workingfolder/.remove_to_reinstall_django" ]; then
-    # this is new project, setup example page
+if [ $CREATE_NEW = 1 ]; then
+	# this is new project, setup example page
+	echo -e "${BLUE}New project ${NC}"
+	
+	echo -e "${BLUE}Delete venv and djangoapp ${NC}"
+	rm -r $workingfolder/venv/
+	rm -r $workingfolder/djangoapp/
+	
+	echo -e "${BLUE}Create venv ${NC}"
+	virtualenv -p python3 venv
+	source venv/bin/activate
+	
+	echo -e "${BLUE}create djangoapp folder ${NC}"
+	mkdir $workingfolder/djangoapp/
 
-    virtualenv -p python3 venv
-    source venv/bin/activate
+	echo -e "${BLUE}create requirements.txt ${NC}"
+	touch $workingfolder/djangoapp/requirements.txt
+	echo "Django==3.2.9">> $workingfolder/djangoapp/requirements.txt
+	
+	echo -e "${BLUE}install requirements.txt ${NC}"
+	pip install gunicorn psycopg2-binary
+	pip install -r $workingfolder/djangoapp/requirements.txt
+	
+	echo -e "${BLUE}Setup django project ${NC}"
+	cd djangoapp
+	django-admin startproject $appname .
+	
+	echo -e "${BLUE}Patching... ${NC}"
+	echo "
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+" >> $workingfolder/djangoapp/$appname/settings.py
+	# update hostname
+	sed -i "s/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['$domain'\]/" "$workingfolder/djangoapp/$appname/settings.py"
 
-    mkdir /home/admin/web/test.gorlik.pl/djangoapp/
-    touch /home/$user/web/$domain/djangoapp/requirements.txt
-    echo "Django==3.2.9">> /home/$user/web/$domain/djangoapp/requirements.txt
-    pip install gunicorn psycopg2-binary
-    pip install -r /home/$user/web/$domain/djangoapp/requirements.txt
 
-    cd djangoapp
-    django-admin startproject djangoapp .
-    ./manage.py makemigrations
-    ./manage.py migrate
+	echo -e "${BLUE}Preparing... ${NC}"
+	./manage.py makemigrations
+	./manage.py migrate
+	./manage.py collectstatic --no-input > /dev/null
 
-    chown $user:$user db.sqlite3
-    chown $user:$user manage.py
-    chown $user:$user requirements.txt
-    chown -R $user:$user djangoapp
-
-    echo "
-STATIC_ROOT = BASE_DIR / 'static'
-" >> $workingfolder/djangoapp/djangoapp/settings.py
-    ./manage.py collectstatic
-
-    # update hostname
-    sed -i "s/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['$domain'\]/" "$workingfolder/djangoapp/djangoapp/settings.py"
-    
-    cd ..
-    chown -R $user:$user venv
-    chown -R $user:$user djangoapp
 
 else
-# This is normal project load it normally
+	# load project
+	echo -e "${BLUE}Load project ${NC}"
+	
+	echo -e "${BLUE}activate venv ${NC}"
+	source venv/bin/activate
 
-source venv/bin/activate
-
-# get djangoapp_name
-djangoapp_name="djangoapp"
-if [ -f "$workingfolder/djangoapp_name.txt" ]; then
-    djangoapp_name=$(cat "$workingfolder/djangoapp_name.txt")
-    # TODO check is that path exist and prevent path traversial
-fi
-
-# try install requirements
-if [ -f "$workingfolder/djangoapp/requirements.txt" ]; then
-    pip install -r /home/$user/web/$domain/djangoapp/requirements.txt
-fi
-
-# ForceInstall Gunicorn
-pip install gunicorn psycopg2-binary
-
-cd $djangoapp_name
-./manage.py makemigrations
-./manage.py migrate
-
-chown $user:$user db.sqlite3
-chown $user:$user manage.py
-chown $user:$user requirements.txt
-chown -R $user:$user $djangoapp_name
-chown -R $user:$user venv
-
-./manage.py collectstatic
-
-cd ..
+	echo -e "${BLUE}install requirements.txt ${NC}"
+	pip install gunicorn psycopg2-binary
+	pip install -r $workingfolder/djangoapp/requirements.txt
+	
+	echo -e "${BLUE}Setup django project ${NC}"
+	cd djangoapp
+	./manage.py makemigrations
+	./manage.py migrate
 
 fi
 
 
-# At this stage you can test that it works executing:
-# gunicorn -b 0.0.0.0:8000 djangoapp.wsgi:application
-# *after* adding your domain to ALLOWED_HOSTS
 
-# This following part adds Gunicorn socket and service,
-# and needs to be improved, particularly to allow multiple
-# Django applications running in the same server.
+echo -e "${BLUE}Setup permissions ${NC}"
+chown -R $user:$user $workingfolder/djangoapp/
+chown -R $user:$user $workingfolder/venv/
 
-# This is intended for Ubuntu. It will require some testing to check how this works
-# in other distros.
 
+
+echo -e "${BLUE}should i create /etc/systemd/system/$domain-gunicorn.socket? ${NC}"
 if [ ! -f "/etc/systemd/system/$domain-gunicorn.socket" ]; then
-
 echo "[Unit]
 Description=gunicorn socket
 
@@ -106,12 +121,12 @@ ListenStream=/run/$domain-gunicorn.sock
 
 [Install]
 WantedBy=sockets.target" > /etc/systemd/system/$domain-gunicorn.socket
-
 fi
 
-if [ ! -f "/etc/systemd/system/$domain-gunicorn.service" ]; then
 
-    echo "[Unit]
+echo -e "${BLUE}should i create /etc/systemd/system/$domain-gunicorn.service? ${NC}"
+if [ ! -f "/etc/systemd/system/$domain-gunicorn.service" ]; then
+echo "[Unit]
 Description=Gunicorn daemon for $domain
 Requires=$domain-gunicorn.socket
 After=network.target
@@ -119,26 +134,36 @@ After=network.target
 [Service]
 User=$user
 Group=$user
-WorkingDirectory=$workingfolder/$djangoapp
-
-ExecStart=$workingfolder/venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/run/$domain-gunicorn.sock -m 007 $djangoapp.wsgi:application
+WorkingDirectory=$workingfolder/djangoapp
+# EnvironmentFile=$workingfolder/djangoapp/.env
+ExecStart=$workingfolder/venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/run/$domain-gunicorn.sock -m 007 $appname.wsgi:application
 
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/$domain-gunicorn.service
-
 fi
 
-systemctl restart $domain-gunicorn.socket
 
-systemctl start $domain-gunicorn.socket
-
-systemctl enable $domain-gunicorn.socket
-
-# Start the socket
-curl --unix-socket /run/$domain-gunicorn.sock localhost
-
+echo -e "${BLUE}systemctl demaon-reload ${NC}"
 sudo systemctl daemon-reload
 
-sudo systemctl restart gunicorn
+echo -e "${BLUE}systemctl restart $domain-gunicorn.socket ${NC}"
+systemctl restart $domain-gunicorn.socket
+
+echo -e "${BLUE}systemctl start $domain-gunicorn.socket ${NC}"
+systemctl start $domain-gunicorn.socket
+
+echo -e "${BLUE}systemctl enable $domain-gunicorn.socket ${NC}"
+systemctl enable $domain-gunicorn.socket
+
+
+Start the socket
+echo -e "${BLUE}Jakis curl ${NC}"
+curl --unix-socket /run/$domain-gunicorn.sock localhost > /dev/null
+
+echo -e "${BLUE}systemctl demaon-reload ${NC}"
+sudo systemctl daemon-reload
+
+echo -e "${BLUE}systemctl restart $domain-gunicorn.service ${NC}"
+sudo systemctl restart $domain-gunicorn.service
 
 exit 0

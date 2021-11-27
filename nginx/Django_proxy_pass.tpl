@@ -7,7 +7,10 @@ server {
     location = /favicon.ico { access_log off; log_not_found off; }
 
     location /static/ {
-        root %home%/%user%/web/%domain%/djangoapp;
+		alias %home%/%user%/web/%domain%/djangoapp/staticfiles/;
+    }
+	location /media/ {
+		alias %home%/%user%/web/%domain%/djangoapp/media/;
     }
 
     location / {

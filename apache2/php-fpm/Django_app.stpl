@@ -34,7 +34,7 @@
     ProxyPassReverse / https://localhost:8000
     ProxyPass /admin http://localhost:8000/admin
     ProxyPassReverse /admin http://localhost:8000/admin
-    ProxyPass /static http://localhost:8000/static
+    ProxyPass /static http://localhost:8000/staticfiles
 
     IncludeOptional %home%/%user%/conf/web/%domain%/%web_system%.ssl.conf_*
 
