@@ -125,7 +125,7 @@ fi
 
 
 echo -e "${BLUE}should i create /etc/systemd/system/$domain-gunicorn.service? ${NC}"
-if [ ! -f "/etc/systemd/system/$domain-gunicorn.service" ]; then
+#if [ ! -f "/etc/systemd/system/$domain-gunicorn.service" ]; then
 echo "[Unit]
 Description=Gunicorn daemon for $domain
 Requires=$domain-gunicorn.socket
@@ -140,7 +140,7 @@ ExecStart=$workingfolder/venv/bin/gunicorn --access-logfile - --workers 3 --bind
 
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/$domain-gunicorn.service
-fi
+#fi
 
 
 echo -e "${BLUE}systemctl demaon-reload ${NC}"
