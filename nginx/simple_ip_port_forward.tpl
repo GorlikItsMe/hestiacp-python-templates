@@ -33,7 +33,7 @@ server {
     }
 
     location /vstats/ {
-        proxy_pass      https://%ip%:%web_ssl_port%;
+        proxy_pass      http://%ip%:%web_port%;
     }
 
     location ~ /\.ht    {return 404;}
