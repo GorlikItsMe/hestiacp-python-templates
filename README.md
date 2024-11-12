@@ -36,7 +36,7 @@ If you have tested it with a different version or different distro, feel free to
 sudo apt update
 sudo apt install python3-pip virtualenv
 python3 -m pip install --upgrade pip
-
+sudo apt install python3.12-venv
 ```
 
 3. Download the templates to the correct location:
